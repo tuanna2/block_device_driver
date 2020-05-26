@@ -1,0 +1,3 @@
+/home/ubuntu/linux/tools/labs/skels/./block_device_drivers/4-5-relay-disk/relay-disk.ko
+/home/ubuntu/linux/tools/labs/skels/./block_device_drivers/4-5-relay-disk/relay-disk.o
+
