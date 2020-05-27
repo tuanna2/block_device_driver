@@ -28,7 +28,7 @@ MODULE_LICENSE("GPL");
 #define KERNEL_SECTOR_SIZE	512
 
 /* TODO 6: use bios for read/write requests */
-#define USE_BIO_TRANSFER	0
+#define USE_BIO_TRANSFER	1
 
 
 static struct my_block_dev {
@@ -64,6 +64,11 @@ static void my_block_transfer(struct my_block_dev *dev, sector_t sector,
 		return;
 
 	/* TODO 3: read/write to dev buffer depending on dir */
+	 if (dir == 1)           /* write */
+                memcpy(dev->data + offset, buffer, len);
+         else
+                memcpy(buffer, dev->data + offset, len);
+
 }
 
 /* to transfer data using bio structures enable USE_BIO_TRANFER */
@@ -71,8 +76,19 @@ static void my_block_transfer(struct my_block_dev *dev, sector_t sector,
 static void my_xfer_request(struct my_block_dev *dev, struct request *req)
 {
 	/* TODO 6: iterate segments */
-
+	struct bio_vec bvec;
+        struct req_iterator iter;
+	rq_for_each_segment(bvec, req, iter) {
+             sector_t sector = iter.iter.bi_sector;
+             unsigned long offset = bvec.bv_offset;
+             size_t len = bvec.bv_len;
+             int dir = bio_data_dir(iter.bio);
+             char *buffer = kmap_atomic(bvec.bv_page);
+             printk(KERN_LOG_LEVEL "%s: buf %8p offset %lu len %u dir %d\n", __func__, buffer, offset, len, dir);
 		/* TODO 6: copy bio data to device buffer */
+		my_block_transfer(dev, sector, len, buffer + offset, dir);
+                kunmap_atomic(buffer);
+	}
 }
 #endif
 
@@ -101,9 +117,12 @@ static void my_block_request(struct request_queue *q)
 
 #if USE_BIO_TRANSFER == 1
 		/* TODO 6: process the request by calling my_xfer_request */
+		 my_xfer_request(dev, rq);
+
 #else
 		/* TODO 3: process the request by calling my_block_transfer */
-#endif
+#endif	
+		my_block_transfer(dev, blk_rq_pos(rq), blk_rq_bytes(rq), bio_data(rq->bio), rq_data_dir(rq));
 
 		/* TODO 2: end request successfully */
 	        __blk_end_request_all(rq, 0);
